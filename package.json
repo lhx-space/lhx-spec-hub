@@ -4,10 +4,10 @@
   "private": true,
   "description": "Aggregate OpenSpec specs from many repos into one searchable rspress/vitepress docs site.",
   "type": "module",
-  "packageManager": "pnpm@10.0.0",
+  "packageManager": "pnpm@11.21.0",
   "engines": {
     "node": "^22.11.0 || ^24.0.0 || >=26.0.0",
-    "pnpm": ">=9.0.0"
+    "pnpm": ">=11.0.0"
   },
   "scripts": {
     "build": "pnpm -r --filter='./packages/*' run build",

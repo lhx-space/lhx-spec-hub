@@ -1,2 +1,11 @@
 packages:
   - 'packages/*'
+
+# 以下这几项在 pnpm@10 之前是写在 .npmrc 里的，从 pnpm@11 起 .npmrc 只保留
+# auth/registry 设置，其余全部迁到这里（见 https://pnpm.io/settings）。
+engineStrict: true
+autoInstallPeers: true
+strictPeerDependencies: false
+shamefullyHoist: false
+publicHoistPattern:
+  - '@types/*'
