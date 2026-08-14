@@ -1,20 +1,11 @@
 /**
- * @app/core — main entry.
+ * @luhanxin/spec-hub-core — framework-agnostic sync/normalization engine.
  *
- * The build pipeline (rslib) emits the formats you selected at
- * scaffold: esm + cjs + umd.
+ * Design not finalized yet. This package will own:
+ *   - pulling `openspec/` content from registered repos
+ *   - normalizing specs/changes/archive into a per-repo-namespaced structure
+ *   - exposing that structure to the rspress/vitepress plugin adapters
+ *
+ * Intentionally left as a placeholder until the sync protocol is designed.
  */
-
 export const VERSION = '0.0.0';
-
-export interface CoreOptions {
-  greeting?: string;
-}
-
-export class Core {
-  constructor(private readonly options: CoreOptions = {}) {}
-
-  greet(name: string): string {
-    return `${this.options.greeting ?? 'Hello'}, ${name}!`;
-  }
-}

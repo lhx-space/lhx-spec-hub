@@ -1,12 +1,12 @@
 {
-  "name": "app-monorepo",
+  "name": "lhx-spec-hub",
   "version": "0.0.0",
   "private": true,
-  "description": ". — multi-package library monorepo",
+  "description": "Aggregate OpenSpec specs from many repos into one searchable rspress/vitepress docs site.",
   "type": "module",
   "packageManager": "pnpm@10.0.0",
   "engines": {
-    "node": ">=18.0.0",
+    "node": "^22.11.0 || ^24.0.0 || >=26.0.0",
     "pnpm": ">=9.0.0"
   },
   "scripts": {
@@ -22,13 +22,13 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.0.0",
-    "@changesets/cli": "^2.27.0",
-    "@commitlint/cli": "^19.6.0",
-    "@commitlint/config-conventional": "^19.6.0",
+    "@biomejs/biome": "^2.5.8",
+    "@changesets/cli": "^3.0.0",
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
     "husky": "^9.1.7",
-    "lint-staged": "^15.2.10",
-    "typescript": "^5.4.0",
-    "@rslib/core": "^0.5.0"
+    "lint-staged": "^17.3.0",
+    "typescript": "^7.0.2",
+    "@rslib/core": "^0.23.2"
   }
 }

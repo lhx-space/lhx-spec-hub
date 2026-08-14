@@ -1,20 +1,12 @@
-# @app/core
+# @luhanxin/spec-hub-core
 
-Primary library package of the **.** monorepo.
+Framework-agnostic sync/normalization engine for [lhx-spec-hub](../../README.md).
+Not implemented yet — see the root README for the current design status.
 
 ## Install
 
 ```bash
-pnpm add @app/core
-```
-
-## Usage
-
-```ts
-import {Core} from '@app/core';
-
-const core = new Core({greeting: 'Hi'});
-console.log(core.greet('World')); // Hi, World!
+pnpm add @luhanxin/spec-hub-core
 ```
 
 ## Scripts
@@ -27,4 +19,4 @@ pnpm typecheck   # tsc --noEmit
 
 ## Output formats
 
-`esm + cjs + umd`. Configured in `rslib.config.*`.
+`esm + cjs + umd`. Configured in `rslib.config.ts`.

@@ -1,8 +1,8 @@
 {
-  "name": "@app/core",
+  "name": "@luhanxin/spec-hub-core",
   "version": "0.0.0",
   "private": false,
-  "description": "Core package of the . monorepo",
+  "description": "Framework-agnostic sync/normalization engine for aggregating OpenSpec content across repos.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
