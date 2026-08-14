@@ -3,6 +3,16 @@
   "version": "0.0.0",
   "private": false,
   "description": "Framework-agnostic sync/normalization engine for aggregating OpenSpec content across repos.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lhx-space/lhx-spec-hub.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/lhx-space/lhx-spec-hub/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/lhx-space/lhx-spec-hub/issues"
+  },
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",

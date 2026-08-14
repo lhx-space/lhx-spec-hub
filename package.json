@@ -3,6 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "description": "Aggregate OpenSpec specs from many repos into one searchable rspress/vitepress docs site.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lhx-space/lhx-spec-hub.git"
+  },
+  "homepage": "https://github.com/lhx-space/lhx-spec-hub#readme",
+  "bugs": {
+    "url": "https://github.com/lhx-space/lhx-spec-hub/issues"
+  },
   "type": "module",
   "packageManager": "pnpm@11.21.0",
   "engines": {
