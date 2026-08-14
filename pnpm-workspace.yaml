@@ -9,3 +9,6 @@ strictPeerDependencies: false
 shamefullyHoist: false
 publicHoistPattern:
   - '@types/*'
+allowBuilds:
+  esbuild: true
+

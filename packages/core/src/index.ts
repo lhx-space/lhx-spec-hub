@@ -1,11 +1,18 @@
 /**
  * @luhanxin/spec-hub-core — framework-agnostic sync/normalization engine.
  *
- * Design not finalized yet. This package will own:
- *   - pulling `openspec/` content from registered repos
- *   - normalizing specs/changes/archive into a per-repo-namespaced structure
- *   - exposing that structure to the rspress/vitepress plugin adapters
- *
- * Intentionally left as a placeholder until the sync protocol is designed.
+ * Reads a registered repo's `openspec/` subtree from a local filesystem path (no network/git
+ * access — see `ReadLocalRepoInput`) and normalizes it into a `RepoContent` tree that the
+ * rspress/vitepress plugin adapters can render without needing to understand OpenSpec's on-disk
+ * layout themselves. See openspec/changes/cross-repo-spec-aggregation/design.md Decision 6.
  */
-export const VERSION = '0.0.0';
+
+export {readRepoContentOnce, SyncedRepoStore} from './sync';
+export type {
+  ArchivedChange,
+  ArchivedChangeRef,
+  CapabilitySpec,
+  ReadLocalRepoInput,
+  RepoContent,
+  RepoIdentity
+} from './types';

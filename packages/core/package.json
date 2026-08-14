@@ -31,6 +31,13 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "dev": "rslib build --watch",
-    "build": "rslib build"
+    "build": "rslib build",
+    "test": "vitest run",
+    "verify:yjs-docs": "tsx scripts/verify-against-yjs-docs.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "tsx": "^4.23.12",
+    "vitest": "^4.1.10"
   }
 }
