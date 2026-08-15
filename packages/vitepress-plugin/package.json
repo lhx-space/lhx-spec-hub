@@ -1,0 +1,68 @@
+{
+  "name": "@luhanxin/spec-hub-vitepress-plugin",
+  "version": "0.0.0",
+  "description": "vitepress build-time helper that renders a synced @luhanxin/spec-hub-core RepoContent tree into a docs site",
+  "keywords": [
+    "openspec",
+    "vitepress",
+    "vitepress-plugin",
+    "spec-hub"
+  ],
+  "license": "MIT",
+  "author": "luhanxin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lhx-space/lhx-spec-hub.git",
+    "directory": "packages/vitepress-plugin"
+  },
+  "homepage": "https://github.com/lhx-space/lhx-spec-hub/tree/main/packages/vitepress-plugin#readme",
+  "bugs": {
+    "url": "https://github.com/lhx-space/lhx-spec-hub/issues"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE",
+    "package.json",
+    "tsconfig.json"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "tsup && tsc -p tsconfig.build.json",
+    "dev": "tsup --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "verify:build": "node scripts/verify-build.mjs",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@luhanxin/spec-hub-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "vitepress": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "vitepress": "^1.6.4",
+    "tsup": "^8.3.5",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}

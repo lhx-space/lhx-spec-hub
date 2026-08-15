@@ -22,9 +22,9 @@
 
 ## 5. `docs-site-plugins` —— 先搭最小可运行骨架
 
-- [ ] 5.1 用 `lhx-cli add package` 新建 `packages/rspress-plugin`、`packages/vitepress-plugin`，依赖 `@luhanxin/spec-hub-core`
-- [ ] 5.2 每个插件实现最小可运行版本：消费内容树，生成 `/<org>/<repo>/specs/<capability>` 与 `/<org>/<repo>/changes/<slug>` 两类路由（本轮不做搜索、不做展示层转换）
-- [ ] 5.3 用第 4 节里 yjs-docs fixture 产出的内容树，分别跑通 rspress 与 vitepress 的本地构建，确认两个站点都能正常生成
+- [x] 5.1 用 `lhx-cli add package` 新建 `packages/rspress-plugin`、`packages/vitepress-plugin`，依赖 `@luhanxin/spec-hub-core`
+- [x] 5.2 每个插件实现最小可运行版本：消费内容树，生成 `/<org>/<repo>/specs/<capability>` 与 `/<org>/<repo>/changes/<slug>` 两类路由（本轮不做搜索、不做展示层转换）
+- [x] 5.3 用第 4 节里 yjs-docs fixture 产出的内容树，分别跑通 rspress 与 vitepress 的本地构建，确认两个站点都能正常生成
 
 ## 6. `repo-registration` —— 本轮只解决协议设计，不做实现
 
