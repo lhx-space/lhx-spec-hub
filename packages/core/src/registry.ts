@@ -129,6 +129,27 @@ export function resolveContentSource(entry: RegistryEntry, configDir: string): R
   return createDiskContentSource(resolve(configDir, entry.path));
 }
 
+/** One repo's sync lifecycle, reported through `SyncRegistryOptions.onProgress` — purely an
+ * observability hook, has no bearing on sync behavior itself. `index`/`total` are stable
+ * across all three statuses for the same repo (0-based position within `config.repos`), NOT an
+ * indicator of completion order — repos sync concurrently (`Promise.all`), so `'succeeded'`/
+ * `'failed'` events can arrive in any order relative to each other. */
+export interface SyncProgressEvent {
+  identity: RepoIdentity;
+  status: 'started' | 'succeeded' | 'failed';
+  index: number;
+  total: number;
+}
+
+export interface SyncRegistryOptions {
+  /** Called once with `status: 'started'` right before each repo's `readRepoContentOnce` begins,
+   * and once more with `'succeeded'`/`'failed'` right after it settles. `syncRegistry` stays
+   * framework-agnostic by emitting plain data here instead of depending on any particular
+   * terminal/UI library itself — see either playground's sync script for a `cli-progress`-based
+   * consumer that turns this into an actual progress bar. */
+  onProgress?: (event: SyncProgressEvent) => void;
+}
+
 /** Syncs every repo in `config` — network/disk reads run concurrently (`Promise.all`), matching
  * the full-resync-per-repo model (Decision 6b) applied across the whole registry rather than
  * just within one repo. One entry failing rejects the whole call; callers that want
@@ -136,21 +157,33 @@ export function resolveContentSource(entry: RegistryEntry, configDir: string): R
  * calls themselves instead of using this convenience function. */
 export async function syncRegistry(
   config: RegistryConfig,
-  configDir: string
+  configDir: string,
+  options: SyncRegistryOptions = {}
 ): Promise<RegistrySyncResult[]> {
+  const total = config.repos.length;
   return Promise.all(
-    config.repos.map(async entry => {
+    config.repos.map(async (entry, index) => {
       const identity = resolveRegistryEntryIdentity(entry);
-      const source = resolveContentSource(entry, configDir);
-      const content = await readRepoContentOnce(source, identity);
-      return {entry, identity, content};
+      options.onProgress?.({identity, status: 'started', index, total});
+      try {
+        const source = resolveContentSource(entry, configDir);
+        const content = await readRepoContentOnce(source, identity);
+        options.onProgress?.({identity, status: 'succeeded', index, total});
+        return {entry, identity, content};
+      } catch (error) {
+        options.onProgress?.({identity, status: 'failed', index, total});
+        throw error;
+      }
     })
   );
 }
 
 /** Convenience wrapper: load `spec-hub.config.yaml` at `configPath` and sync every repo it
  * lists in one call. */
-export async function loadAndSyncRegistry(configPath: string): Promise<RegistrySyncResult[]> {
+export async function loadAndSyncRegistry(
+  configPath: string,
+  options: SyncRegistryOptions = {}
+): Promise<RegistrySyncResult[]> {
   const config = loadRegistryConfig(configPath);
-  return syncRegistry(config, dirname(configPath));
+  return syncRegistry(config, dirname(configPath), options);
 }

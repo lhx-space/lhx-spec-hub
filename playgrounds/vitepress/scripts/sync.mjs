@@ -9,19 +9,51 @@
  *
  * Invoked automatically by `predev`/`prebuild` in package.json — not meant to be run standalone
  * except for debugging.
+ *
+ * Shows a live `cli-progress` bar while syncing (skipped when stdout isn't a TTY, e.g. in CI
+ * logs, where a redrawing bar would just be noise) — driven by `loadAndSyncRegistry`'s
+ * `onProgress` hook (`@luhanxin/spec-hub-core`), which is itself UI-library-agnostic; this
+ * script is the one place that turns those plain events into an actual terminal bar.
  */
 import {mkdirSync, writeFileSync} from 'node:fs';
 import {dirname, join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {loadAndSyncRegistry} from '@luhanxin/spec-hub-core';
 import {writeSpecHubVitepressPages} from '@luhanxin/spec-hub-vitepress-plugin';
+import cliProgress from 'cli-progress';
 
 const playgroundDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const configPath = join(playgroundDir, 'spec-hub.config.yaml');
 const docsRoot = join(playgroundDir, 'docs');
 
 async function main() {
-  const repos = await loadAndSyncRegistry(configPath);
+  const bar = process.stdout.isTTY
+    ? new cliProgress.SingleBar(
+        {
+          format: 'Syncing repos |{bar}| {percentage}% | {value}/{total} | last: {repo}',
+          hideCursor: true
+        },
+        cliProgress.Presets.shades_classic
+      )
+    : undefined;
+  let barStarted = false;
+
+  const repos = await loadAndSyncRegistry(configPath, {
+    onProgress: ({identity, status, total}) => {
+      if (!bar) return;
+      if (!barStarted) {
+        bar.start(total, 0, {repo: ''});
+        barStarted = true;
+      }
+      if (status === 'succeeded' || status === 'failed') {
+        bar.increment(1, {
+          repo: `${identity.org}/${identity.repo}${status === 'failed' ? ' (failed)' : ''}`
+        });
+      }
+    }
+  });
+  bar?.stop();
+
   for (const {identity, content} of repos) {
     console.log(
       `Synced ${identity.org}/${identity.repo}: ${content.capabilities.length} capabilities, ` +

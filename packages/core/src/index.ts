@@ -32,7 +32,13 @@ export {
   listArchivedChanges,
   listCapabilities
 } from './query';
-export type {RegistryConfig, RegistryEntry, RegistrySyncResult} from './registry';
+export type {
+  RegistryConfig,
+  RegistryEntry,
+  RegistrySyncResult,
+  SyncProgressEvent,
+  SyncRegistryOptions
+} from './registry';
 export {
   loadAndSyncRegistry,
   loadRegistryConfig,

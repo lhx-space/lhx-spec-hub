@@ -10,7 +10,12 @@ import {
   resolveRegistryEntryIdentity,
   syncRegistry
 } from '../src/registry';
-import {createTempOpenspecFixture, writeCapabilitySpec, writeReadme} from './fixtures';
+import {
+  createTempOpenspecFixture,
+  writeArchivedChange,
+  writeCapabilitySpec,
+  writeReadme
+} from './fixtures';
 
 describe('loadRegistryConfig', () => {
   let dir: string;
@@ -151,6 +156,69 @@ describe('syncRegistry', () => {
     } finally {
       fixtureA.cleanup();
       fixtureB.cleanup();
+    }
+  });
+
+  it('reports started/succeeded through onProgress, in stable index order, without affecting the returned results', async () => {
+    const fixtureA = createTempOpenspecFixture();
+    const fixtureB = createTempOpenspecFixture();
+    try {
+      const events: Array<{
+        identity: {org: string; repo: string};
+        status: string;
+        index: number;
+        total: number;
+      }> = [];
+
+      const results = await syncRegistry(
+        {
+          repos: [
+            {path: fixtureA.repoRootDir, org: 'org-a', repo: 'repo-a'},
+            {path: fixtureB.repoRootDir, org: 'org-b', repo: 'repo-b'}
+          ]
+        },
+        '/irrelevant',
+        {onProgress: event => events.push(event)}
+      );
+
+      expect(results).toHaveLength(2);
+      // One 'started' + one 'succeeded' per repo, each keeping the same {identity, index, total}
+      // it started with — regardless of which repo's promise happens to settle first.
+      const forRepoA = events.filter(event => event.identity.repo === 'repo-a');
+      expect(forRepoA.map(event => event.status)).toEqual(['started', 'succeeded']);
+      expect(forRepoA.every(event => event.index === 0 && event.total === 2)).toBe(true);
+      const forRepoB = events.filter(event => event.identity.repo === 'repo-b');
+      expect(forRepoB.map(event => event.status)).toEqual(['started', 'succeeded']);
+      expect(forRepoB.every(event => event.index === 1 && event.total === 2)).toBe(true);
+    } finally {
+      fixtureA.cleanup();
+      fixtureB.cleanup();
+    }
+  });
+
+  it('reports a "failed" status (and still rejects) when a repo errors', async () => {
+    const fixture = createTempOpenspecFixture();
+    try {
+      // A malformed archived change (missing required proposal.md) is what readRepoContentOnce
+      // actually throws for — see sync.ts.
+      writeArchivedChange(fixture.openspecDir, {
+        archivedDate: '2026-08-15',
+        slug: 'broken',
+        omitProposal: true
+      });
+      const events: Array<{status: string}> = [];
+
+      await expect(
+        syncRegistry(
+          {repos: [{path: fixture.repoRootDir, org: 'org-a', repo: 'repo-a'}]},
+          '/irrelevant',
+          {onProgress: event => events.push(event)}
+        )
+      ).rejects.toThrow(/missing proposal\.md/);
+
+      expect(events.map(event => event.status)).toEqual(['started', 'failed']);
+    } finally {
+      fixture.cleanup();
     }
   });
 });
