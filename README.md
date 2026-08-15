@@ -1,7 +1,5 @@
 # lhx-spec-hub
 
-> Status: **design in progress**, no working code yet. Generated from `lhx-cli create --template=lib-monorepo`.
-
 Aggregate [OpenSpec](https://github.com/Fission-AI/OpenSpec) content (`specs/`, `changes/`, `changes/archive/`) from many
 registered git repositories into a single, searchable documentation site — rendered via
 [rspress](https://rspress.dev) or [vitepress](https://vitepress.dev), your choice.
