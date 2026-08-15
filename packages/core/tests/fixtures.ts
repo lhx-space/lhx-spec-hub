@@ -3,12 +3,16 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 
 /**
- * Builds a minimal, throwaway `openspec/` directory on disk for unit tests — deliberately not
- * the real `yjs-docs` fixture (that's `scripts/verify-against-yjs-docs.ts`, a manual/local-only
+ * Builds a minimal, throwaway repo checkout on disk for unit tests — a `repoRootDir` containing
+ * `openspec/**` and (optionally) `README.md`/`README.zh-CN.md` at its root, matching what
+ * `DiskContentSource` now expects (design.md Decision 8 moved the source's root from
+ * `openspec/` up to the repo root, so it can also reach the READMEs). Deliberately not the real
+ * `yjs-docs` fixture (that's `scripts/verify-against-yjs-docs.ts`, a manual/local-only
  * verification step, not something CI should depend on a sibling repo existing for). Callers
  * must call the returned `cleanup()` once done.
  */
 export interface TempOpenspecFixture {
+  repoRootDir: string;
   openspecDir: string;
   cleanup: () => void;
 }
@@ -16,7 +20,8 @@ export interface TempOpenspecFixture {
 export function createTempOpenspecFixture(): TempOpenspecFixture {
   const root = mkdtempSync(join(tmpdir(), 'spec-hub-core-test-'));
   return {
-    openspecDir: root,
+    repoRootDir: root,
+    openspecDir: join(root, 'openspec'),
     cleanup: () => rmSync(root, {recursive: true, force: true})
   };
 }
@@ -25,6 +30,16 @@ export function writeCapabilitySpec(openspecDir: string, slug: string, markdown:
   const dir = join(openspecDir, 'specs', slug);
   mkdirSync(dir, {recursive: true});
   writeFileSync(join(dir, 'spec.md'), markdown, 'utf-8');
+}
+
+export function writeReadme(repoRootDir: string, markdown: string): void {
+  mkdirSync(repoRootDir, {recursive: true});
+  writeFileSync(join(repoRootDir, 'README.md'), markdown, 'utf-8');
+}
+
+export function writeReadmeZhCN(repoRootDir: string, markdown: string): void {
+  mkdirSync(repoRootDir, {recursive: true});
+  writeFileSync(join(repoRootDir, 'README.zh-CN.md'), markdown, 'utf-8');
 }
 
 /** Shared shape consumed by both `writeArchivedChange` (disk) and `createFakeContentSource`

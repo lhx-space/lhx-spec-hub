@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
  * Local/manual verification for tasks.md task 5.3 — actually runs `vitepress build` against the
- * real `yjs-docs` `openspec/` content synced through `@luhanxin/spec-hub-core`, using this
- * package's `writeSpecHubVitepressPages`, and checks the generated HTML output contains the
- * expected namespaced routes.
+ * real `yjs-docs` repo (README + `openspec/` content) synced through `@luhanxin/spec-hub-core`,
+ * using this package's `writeSpecHubVitepressPages`, and checks the generated HTML output
+ * contains the expected namespaced routes (capability page, archived-change page, repo index
+ * page, homepage).
  *
  * Not part of CI (assumes `yjs-docs` is checked out as a sibling directory) — run manually via
  * `pnpm verify:build`. Requires `pnpm build` (this package + `@luhanxin/spec-hub-core`) to have
@@ -17,27 +18,34 @@ import {createDiskContentSource, readRepoContentOnce} from '@luhanxin/spec-hub-c
 import {writeSpecHubVitepressPages} from '../dist/index.js';
 
 const packageDir = dirname(dirname(fileURLToPath(import.meta.url)));
-const yjsDocsOpenspecDir = join(packageDir, '../../../yjs-docs/openspec');
+const yjsDocsRepoRootDir = join(packageDir, '../../../yjs-docs');
 const verifyDir = join(packageDir, '.verify-tmp');
 
 async function main() {
-  if (!existsSync(yjsDocsOpenspecDir)) {
-    console.error(`yjs-docs not found as a sibling directory (expected at ${yjsDocsOpenspecDir}).`);
+  if (!existsSync(join(yjsDocsRepoRootDir, 'openspec'))) {
+    console.error(`yjs-docs not found as a sibling directory (expected at ${yjsDocsRepoRootDir}).`);
     process.exit(1);
   }
 
-  const source = createDiskContentSource(yjsDocsOpenspecDir);
-  const repoContent = await readRepoContentOnce(source, {org: 'lhx-space', repo: 'yjs-docs'});
+  const identity = {org: 'lhx-space', repo: 'yjs-docs'};
+  const source = createDiskContentSource(yjsDocsRepoRootDir);
+  const content = await readRepoContentOnce(source, identity);
   console.log(
-    `Synced ${repoContent.capabilities.length} capabilities, ${repoContent.archivedChanges.length} archived changes from yjs-docs.`
+    `Synced ${content.capabilities.length} capabilities, ${content.archivedChanges.length} archived changes, ` +
+      `readme: ${content.readme ? 'yes' : 'no'} from yjs-docs.`
   );
+
+  const registrySyncResult = {
+    entry: {gitRepoUrl: 'https://github.com/lhx-space/yjs-docs'},
+    identity,
+    content
+  };
 
   rmSync(verifyDir, {recursive: true, force: true});
   mkdirSync(join(verifyDir, 'docs', '.vitepress'), {recursive: true});
-  writeFileSync(join(verifyDir, 'docs', 'index.md'), '# Spec Hub verify build\n');
 
   const {sidebar} = await writeSpecHubVitepressPages({
-    repos: [repoContent],
+    repos: [registrySyncResult],
     docsRoot: join(verifyDir, 'docs')
   });
 
@@ -46,6 +54,11 @@ async function main() {
     [
       'export default {',
       "  title: 'Spec Hub verify build',",
+      // Embedded READMEs are verbatim content from outside this package's control and commonly
+      // contain repo-relative links (e.g. `./packages/foo`) that are meaningful on GitHub but
+      // don't resolve to any page in this generated site — vitepress's default dead-link check
+      // would otherwise fail the whole build over that, not just warn.
+      '  ignoreDeadLinks: true,',
       `  themeConfig: {sidebar: ${JSON.stringify(sidebar)}}`,
       '};',
       ''
@@ -58,13 +71,15 @@ async function main() {
     stdio: 'inherit'
   });
 
-  const sampleCapability = repoContent.capabilities[0];
+  const sampleCapability = content.capabilities[0];
   if (!sampleCapability) {
     throw new Error('yjs-docs fixture produced zero capabilities — nothing to verify.');
   }
-  const sampleChange = repoContent.archivedChanges[0];
+  const sampleChange = content.archivedChanges[0];
 
   const expectedFiles = [
+    join(verifyDir, 'docs/.vitepress/dist', 'index.html'),
+    join(verifyDir, 'docs/.vitepress/dist', 'lhx-space/yjs-docs.html'),
     join(
       verifyDir,
       'docs/.vitepress/dist',

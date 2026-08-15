@@ -21,11 +21,11 @@ public/mockServiceWorker.js
 **/dist
 .env
 
-# playground docs sites (packages/*-plugin/playground) — landing page + config are checked in,
-# everything else is generated at `playground:sync`/`playground:dev`/`playground:build` time from
-# a sibling repo's real openspec/ content and shouldn't be committed.
+# playground docs sites (playgrounds/*) — entirely generated at `pnpm sync`/`pnpm dev`/
+# `pnpm build` time by syncing spec-hub.config.yaml's registered repos (homepage included, see
+# design.md Decision 8), so nothing under docs/ is committed.
 doc_build
 **/.vitepress/cache
-**/playground/docs/.vitepress/dist
-**/playground/docs/.vitepress/config.mjs
-**/playground/docs/*/
+playgrounds/rspress/docs/*
+playgrounds/vitepress/docs/*
+!playgrounds/rspress/docs/.gitkeep

@@ -8,7 +8,9 @@ import {
   createTempOpenspecFixture,
   writeActiveChange,
   writeArchivedChange,
-  writeCapabilitySpec
+  writeCapabilitySpec,
+  writeReadme,
+  writeReadmeZhCN
 } from './fixtures';
 
 const identity = {org: 'lhx-space', repo: 'yjs-docs'};
@@ -26,7 +28,9 @@ function buildDiskSource(data: FakeSourceData): BuiltSource {
   for (const change of data.archivedChanges ?? []) {
     writeArchivedChange(fixture.openspecDir, change);
   }
-  return {source: new DiskContentSource(fixture.openspecDir), cleanup: fixture.cleanup};
+  if (data.readme !== undefined) writeReadme(fixture.repoRootDir, data.readme);
+  if (data.readmeZhCN !== undefined) writeReadmeZhCN(fixture.repoRootDir, data.readmeZhCN);
+  return {source: new DiskContentSource(fixture.repoRootDir), cleanup: fixture.cleanup};
 }
 
 function buildFakeSource(data: FakeSourceData): BuiltSource {
@@ -111,6 +115,23 @@ describe.each([
     const store = new SyncedRepoStore();
     expect(store.getLastSynced(identity)).toBeUndefined();
   });
+
+  it('includes readme/readmeZhCN when the source has them, undefined when it does not', async () => {
+    const withReadmes = build({readme: '# Project\nEnglish.\n', readmeZhCN: '# 项目\n中文。\n'});
+    const withoutReadmes = build({capabilities: {a: '## Requirements\n'}});
+    try {
+      const content = await readRepoContentOnce(withReadmes.source, identity);
+      expect(content.readme).toBe('# Project\nEnglish.\n');
+      expect(content.readmeZhCN).toBe('# 项目\n中文。\n');
+
+      const bare = await readRepoContentOnce(withoutReadmes.source, identity);
+      expect(bare.readme).toBeUndefined();
+      expect(bare.readmeZhCN).toBeUndefined();
+    } finally {
+      withReadmes.cleanup();
+      withoutReadmes.cleanup();
+    }
+  });
 });
 
 /** Scenarios that only make sense for the disk adapter specifically (active, non-archived
@@ -131,13 +152,13 @@ describe('DiskContentSource-specific behavior', () => {
     writeCapabilitySpec(fixture.openspecDir, 'error-monitor', '## Requirements\n');
     writeActiveChange(fixture.openspecDir, 'some-in-flight-change');
 
-    const content = await readRepoContentOnce(new DiskContentSource(fixture.openspecDir), identity);
+    const content = await readRepoContentOnce(new DiskContentSource(fixture.repoRootDir), identity);
     expect(content.archivedChanges).toEqual([]);
   });
 
   it('a capability removed from disk disappears on the next full re-read', async () => {
     writeCapabilitySpec(fixture.openspecDir, 'error-monitor', '## Requirements\n');
-    const source = new DiskContentSource(fixture.openspecDir);
+    const source = new DiskContentSource(fixture.repoRootDir);
     const before = await readRepoContentOnce(source, identity);
     expect(before.capabilities.map(c => c.slug)).toEqual(['error-monitor']);
 

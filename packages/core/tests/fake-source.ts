@@ -5,6 +5,8 @@ export interface FakeSourceData {
   /** slug -> spec.md markdown. */
   capabilities?: Record<string, string>;
   archivedChanges?: ArchivedChangeFixture[];
+  readme?: string;
+  readmeZhCN?: string;
 }
 
 /**
@@ -46,8 +48,17 @@ export function createFakeContentSource(data: FakeSourceData): RepoContentSource
       if (fileName === 'design.md') return change.designMarkdown;
       return change.tasksMarkdown;
     },
-    async listTouchedCapabilities(dirName: string) {
-      return [...(findChange(dirName)?.touchedCapabilities ?? [])].sort();
+    async readCapabilityDeltas(dirName: string) {
+      const change = findChange(dirName);
+      return [...(change?.touchedCapabilities ?? [])]
+        .sort()
+        .map(slug => ({slug, deltaMarkdown: '## ADDED Requirements\n'}));
+    },
+    async readReadme() {
+      return data.readme;
+    },
+    async readReadmeZhCN() {
+      return data.readmeZhCN;
     }
   };
 }

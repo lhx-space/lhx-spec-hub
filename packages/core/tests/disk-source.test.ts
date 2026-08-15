@@ -5,7 +5,9 @@ import {
   createTempOpenspecFixture,
   type TempOpenspecFixture,
   writeArchivedChange,
-  writeCapabilitySpec
+  writeCapabilitySpec,
+  writeReadme,
+  writeReadmeZhCN
 } from './fixtures';
 
 describe('DiskContentSource', () => {
@@ -14,7 +16,7 @@ describe('DiskContentSource', () => {
 
   beforeEach(() => {
     fixture = createTempOpenspecFixture();
-    source = new DiskContentSource(fixture.openspecDir);
+    source = new DiskContentSource(fixture.repoRootDir);
   });
 
   afterEach(() => {
@@ -42,7 +44,7 @@ describe('DiskContentSource', () => {
     });
   });
 
-  describe('listArchivedChangeDirs / readArchivedChangeFile / listTouchedCapabilities', () => {
+  describe('listArchivedChangeDirs / readArchivedChangeFile / readCapabilityDeltas', () => {
     it('returns an empty array when changes/archive/ does not exist', async () => {
       expect(await source.listArchivedChangeDirs()).toEqual([]);
     });
@@ -79,9 +81,40 @@ describe('DiskContentSource', () => {
       expect(
         await source.readArchivedChangeFile('2026-08-15-error-monitor-network-support', 'design.md')
       ).toBeUndefined();
-      expect(
-        await source.listTouchedCapabilities('2026-08-15-error-monitor-network-support')
-      ).toEqual(['error-monitor']);
+      expect(await source.readCapabilityDeltas('2026-08-15-error-monitor-network-support')).toEqual(
+        [{slug: 'error-monitor', deltaMarkdown: '## ADDED Requirements\n'}]
+      );
+    });
+
+    it('readCapabilityDeltas returns an empty array when the change has no specs/ delta directory', async () => {
+      writeArchivedChange(fixture.openspecDir, {
+        archivedDate: '2026-08-15',
+        slug: 'docs-only-change'
+      });
+
+      expect(await source.readCapabilityDeltas('2026-08-15-docs-only-change')).toEqual([]);
+    });
+  });
+
+  describe('readReadme / readReadmeZhCN', () => {
+    it('returns undefined when neither README exists', async () => {
+      expect(await source.readReadme()).toBeUndefined();
+      expect(await source.readReadmeZhCN()).toBeUndefined();
+    });
+
+    it('reads README.md / README.zh-CN.md from the repo root, verbatim', async () => {
+      writeReadme(fixture.repoRootDir, '# Project\n\nEnglish description.\n');
+      writeReadmeZhCN(fixture.repoRootDir, '# 项目\n\n中文简介。\n');
+
+      expect(await source.readReadme()).toBe('# Project\n\nEnglish description.\n');
+      expect(await source.readReadmeZhCN()).toBe('# 项目\n\n中文简介。\n');
+    });
+
+    it('README.zh-CN.md can be present without README.md, and vice versa', async () => {
+      writeReadme(fixture.repoRootDir, '# Project\n');
+
+      expect(await source.readReadme()).toBe('# Project\n');
+      expect(await source.readReadmeZhCN()).toBeUndefined();
     });
   });
 });

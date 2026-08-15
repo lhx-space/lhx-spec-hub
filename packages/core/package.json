@@ -35,6 +35,9 @@
     "test": "vitest run",
     "verify:yjs-docs": "tsx scripts/verify-against-yjs-docs.ts"
   },
+  "dependencies": {
+    "yaml": "^2.9.0"
+  },
   "devDependencies": {
     "@types/node": "^26.2.0",
     "tsx": "^4.23.12",

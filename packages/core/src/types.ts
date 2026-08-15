@@ -3,7 +3,8 @@
  * `cross-repo-spec-aggregation` change. Every registered repo's `openspec/` subtree is
  * normalized into exactly two collections — `capabilities` (from `specs/`) and
  * `archivedChanges` (from `changes/archive/`). Active, not-yet-archived `changes/<name>/`
- * directories are never represented here (see spec-sync-engine spec.md).
+ * directories are never represented here (see spec-sync-engine spec.md). `readme`/`readmeZhCN`
+ * (design.md Decision 8) come from the repo's own root, one level above `openspec/`.
  */
 
 /** Namespace identity used to keep two different repos' same-named capabilities from colliding
@@ -59,19 +60,34 @@ export interface ArchivedChange {
   designMarkdown?: string;
   /** Verbatim contents of `tasks.md`, if present. */
   tasksMarkdown?: string;
-  /** Capability slugs whose `specs/<slug>/` delta directory exists under this change. */
-  touchedCapabilities: string[];
+  /** One entry per `changes/archive/<dirName>/specs/<slug>/spec.md` — the actual ADDED/
+   * MODIFIED/REMOVED Requirements delta content OpenSpec's own tooling shows when reviewing a
+   * change, not just which capability slugs were touched. Empty array, never omitted, when the
+   * change has no `specs/` delta directory at all (e.g. a docs-only/infra change). */
+  specDeltas: CapabilityDelta[];
+}
+
+/** One capability's delta content within a single archived change — `changes/archive/<dirName>/
+ * specs/<slug>/spec.md`, verbatim. */
+export interface CapabilityDelta {
+  slug: string;
+  deltaMarkdown: string;
 }
 
 export interface RepoContent extends RepoIdentity {
   capabilities: CapabilitySpec[];
   archivedChanges: ArchivedChange[];
+  /** Verbatim contents of the repo root's `README.md`, if present (design.md Decision 8) —
+   * source material for the homepage card `docs-site-plugins` renders for this repo. */
+  readme?: string;
+  /** Verbatim contents of the repo root's `README.zh-CN.md`, if present. */
+  readmeZhCN?: string;
 }
 
 /**
- * The protocol every "how do bytes get here" adapter implements — disk (the only adapter this
- * package ships, see `disk-source.ts`), and later a git-clone-to-tempdir adapter / GitHub API
- * in-memory adapter / isomorphic-git adapter, none of which are built yet. `associate.ts` and
+ * The protocol every "how do bytes get here" adapter implements — disk (`disk-source.ts`) and
+ * a GitHub REST/raw-content in-memory adapter (`github-source.ts`, design.md Decision 8),
+ * with a git-clone-to-tempdir / isomorphic-git adapter still not built. `associate.ts` and
  * `sync.ts` — the normalization logic that produces `RepoContent` — talk to this interface
  * exclusively; they have no idea whether the bytes came from disk, a network call, or were
  * fabricated in a test (see `tests/fake-source.ts`, and design.md Decision 7).
@@ -94,6 +110,11 @@ export interface RepoContentSource {
     dirName: string,
     fileName: ArchivedChangeFileName
   ): Promise<string | undefined>;
-  /** Capability slugs touched by `changes/archive/<dirName>/specs/<slug>/`. */
-  listTouchedCapabilities(dirName: string): Promise<string[]>;
+  /** The full delta content (`specs/<slug>/spec.md`, verbatim) for every capability touched by
+   * `changes/archive/<dirName>/specs/*`. */
+  readCapabilityDeltas(dirName: string): Promise<CapabilityDelta[]>;
+  /** Verbatim contents of the repo root's `README.md`; `undefined` if absent. */
+  readReadme(): Promise<string | undefined>;
+  /** Verbatim contents of the repo root's `README.zh-CN.md`; `undefined` if absent. */
+  readReadmeZhCN(): Promise<string | undefined>;
 }

@@ -1,0 +1,25 @@
+{
+  "name": "@luhanxin/spec-hub-playground-vitepress",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Runnable example: @luhanxin/spec-hub-vitepress-plugin rendering yjs-docs's real openspec/ content.",
+  "type": "module",
+  "scripts": {
+    "sync": "node scripts/sync.mjs",
+    "predev": "pnpm --filter @luhanxin/spec-hub-core --filter @luhanxin/spec-hub-vitepress-plugin run build && pnpm run sync",
+    "dev": "vitepress dev docs",
+    "prebuild": "pnpm --filter @luhanxin/spec-hub-core --filter @luhanxin/spec-hub-vitepress-plugin run build && pnpm run sync",
+    "build": "vitepress build docs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf docs/.vitepress/dist docs/.vitepress/cache"
+  },
+  "dependencies": {
+    "@luhanxin/spec-hub-core": "workspace:*",
+    "@luhanxin/spec-hub-vitepress-plugin": "workspace:*",
+    "vitepress": "^1.6.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}

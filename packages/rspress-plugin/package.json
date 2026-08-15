@@ -47,12 +47,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "verify:build": "node scripts/verify-build.mjs",
-    "playground:dev": "cd playground && rspress dev",
-    "playground:build": "cd playground && rspress build",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@luhanxin/spec-hub-core": "workspace:*"
+    "@luhanxin/spec-hub-core": "workspace:*",
+    "yaml": "^2.9.0"
   },
   "peerDependencies": {
     "rspress": "^1.0.0"

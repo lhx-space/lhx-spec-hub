@@ -20,10 +20,10 @@ export async function readRepoContentOnce(
       if (proposalMarkdown === undefined) {
         throw new Error(`Malformed archived change "${dirRef.dirName}": missing proposal.md`);
       }
-      const [designMarkdown, tasksMarkdown, touchedCapabilities] = await Promise.all([
+      const [designMarkdown, tasksMarkdown, specDeltas] = await Promise.all([
         source.readArchivedChangeFile(dirRef.dirName, 'design.md'),
         source.readArchivedChangeFile(dirRef.dirName, 'tasks.md'),
-        source.listTouchedCapabilities(dirRef.dirName)
+        source.readCapabilityDeltas(dirRef.dirName)
       ]);
       return {
         slug: dirRef.slug,
@@ -31,21 +31,32 @@ export async function readRepoContentOnce(
         proposalMarkdown,
         designMarkdown,
         tasksMarkdown,
-        touchedCapabilities
+        specDeltas
       };
     })
   );
 
   const capabilitySlugs = await source.listCapabilitySlugs();
-  const capabilities = await Promise.all(
-    capabilitySlugs.map(async slug => ({
-      slug,
-      specMarkdown: await source.readCapabilitySpec(slug),
-      relatedChanges: computeRelatedChanges(slug, archivedChanges)
-    }))
-  );
+  const [capabilities, readme, readmeZhCN] = await Promise.all([
+    Promise.all(
+      capabilitySlugs.map(async slug => ({
+        slug,
+        specMarkdown: await source.readCapabilitySpec(slug),
+        relatedChanges: computeRelatedChanges(slug, archivedChanges)
+      }))
+    ),
+    source.readReadme(),
+    source.readReadmeZhCN()
+  ]);
 
-  return {org: identity.org, repo: identity.repo, capabilities, archivedChanges};
+  return {
+    org: identity.org,
+    repo: identity.repo,
+    capabilities,
+    archivedChanges,
+    readme,
+    readmeZhCN
+  };
 }
 
 function repoKey(identity: RepoIdentity): string {

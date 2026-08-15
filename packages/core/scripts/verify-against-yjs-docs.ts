@@ -12,7 +12,8 @@ import {join} from 'node:path';
 import {createDiskContentSource} from '../src/disk-source';
 import {readRepoContentOnce} from '../src/sync';
 
-const openspecDir = join(import.meta.dirname, '../../../../yjs-docs/openspec');
+const repoRootDir = join(import.meta.dirname, '../../../../yjs-docs');
+const openspecDir = join(repoRootDir, 'openspec');
 
 if (!existsSync(openspecDir)) {
   console.error(
@@ -22,13 +23,15 @@ if (!existsSync(openspecDir)) {
   process.exit(0);
 }
 
-const content = await readRepoContentOnce(createDiskContentSource(openspecDir), {
+const content = await readRepoContentOnce(createDiskContentSource(repoRootDir), {
   org: 'lhx-space',
   repo: 'yjs-docs'
 });
 
 console.log(`capabilities: ${content.capabilities.length}`);
 console.log(`archivedChanges: ${content.archivedChanges.length}`);
+console.log(`readme: ${content.readme ? `${content.readme.length} chars` : '(none)'}`);
+console.log(`readmeZhCN: ${content.readmeZhCN ? `${content.readmeZhCN.length} chars` : '(none)'}`);
 console.log();
 console.log('capabilities with related changes:');
 for (const capability of content.capabilities) {

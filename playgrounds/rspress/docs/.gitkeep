@@ -1,0 +1,4 @@
+This directory is intentionally empty of real content — every page here (including the
+homepage at `/`) is generated at build/dev time by `specHubRspressPlugin`'s `addPages` hook (see
+`../rspress.config.ts`). Kept tracked via this file so the empty `docs/` directory itself isn't
+lost by tools that don't track empty directories.

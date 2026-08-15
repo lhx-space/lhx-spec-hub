@@ -1,0 +1,6 @@
+repos:
+  - gitRepoUrl: https://github.com/lhx-space/infra-docs
+    name: Yjs Docs
+  - gitRepoUrl: https://github.com/juwenzhang/community_platform
+    name: Community Platform
+    ref: master
