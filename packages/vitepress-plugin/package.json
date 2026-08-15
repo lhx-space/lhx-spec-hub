@@ -47,6 +47,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "verify:build": "node scripts/verify-build.mjs",
+    "playground:sync": "node scripts/sync-playground.mjs",
+    "playground:dev": "node scripts/sync-playground.mjs && vitepress dev playground/docs",
+    "playground:build": "node scripts/sync-playground.mjs && vitepress build playground/docs",
     "clean": "rm -rf dist"
   },
   "dependencies": {

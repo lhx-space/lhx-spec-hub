@@ -47,6 +47,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "verify:build": "node scripts/verify-build.mjs",
+    "playground:dev": "cd playground && rspress dev",
+    "playground:build": "cd playground && rspress build",
     "clean": "rm -rf dist"
   },
   "dependencies": {

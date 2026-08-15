@@ -20,3 +20,12 @@ test-results
 public/mockServiceWorker.js
 **/dist
 .env
+
+# playground docs sites (packages/*-plugin/playground) — landing page + config are checked in,
+# everything else is generated at `playground:sync`/`playground:dev`/`playground:build` time from
+# a sibling repo's real openspec/ content and shouldn't be committed.
+doc_build
+**/.vitepress/cache
+**/playground/docs/.vitepress/dist
+**/playground/docs/.vitepress/config.mjs
+**/playground/docs/*/
