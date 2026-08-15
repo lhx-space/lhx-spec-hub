@@ -1,18 +1,22 @@
 /**
  * @luhanxin/spec-hub-core — framework-agnostic sync/normalization engine.
  *
- * Reads a registered repo's `openspec/` subtree from a local filesystem path (no network/git
- * access — see `ReadLocalRepoInput`) and normalizes it into a `RepoContent` tree that the
+ * Normalizes a registered repo's `openspec/` content — read through the `RepoContentSource`
+ * protocol (disk today; git-clone/GitHub-API/isomorphic-git adapters are future, separate
+ * implementations, see design.md Decision 7) — into a `RepoContent` tree that the
  * rspress/vitepress plugin adapters can render without needing to understand OpenSpec's on-disk
- * layout themselves. See openspec/changes/cross-repo-spec-aggregation/design.md Decision 6.
+ * layout, or how bytes got onto disk in the first place.
  */
 
+export {createDiskContentSource, DiskContentSource} from './disk-source';
 export {readRepoContentOnce, SyncedRepoStore} from './sync';
 export type {
   ArchivedChange,
+  ArchivedChangeDirRef,
+  ArchivedChangeFileName,
   ArchivedChangeRef,
   CapabilitySpec,
-  ReadLocalRepoInput,
   RepoContent,
+  RepoContentSource,
   RepoIdentity
 } from './types';

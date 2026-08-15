@@ -1,33 +1,51 @@
-import {join} from 'node:path';
 import {computeRelatedChanges} from './associate';
-import {listArchivedChangeDirs, readArchivedChange} from './read-archive';
-import {readCapabilitySlugs, readCapabilitySpecMarkdown} from './read-specs';
-import type {ReadLocalRepoInput, RepoContent, RepoIdentity} from './types';
+import type {ArchivedChange, RepoContent, RepoContentSource, RepoIdentity} from './types';
 
-/** One full, synchronous read of `input.openspecDir` into a `RepoContent`. Pure — throws on any
- * filesystem error, does not know about (and must not know about) any previously synced content;
- * that concern belongs to `SyncedRepoStore` below. Every call fully re-reads `specs/` and
- * `changes/archive/` from scratch — no incremental diffing (design.md Decision 6b). */
-export function readRepoContentOnce(input: ReadLocalRepoInput): RepoContent {
-  const specsDir = join(input.openspecDir, 'specs');
-  const archiveDir = join(input.openspecDir, 'changes', 'archive');
-
-  const archivedChanges = listArchivedChangeDirs(archiveDir).map(parsed =>
-    readArchivedChange(archiveDir, parsed)
+/**
+ * One full, asynchronous read of `source` into a `RepoContent`. Pure — throws on any error the
+ * source surfaces (or on a missing required `proposal.md`, see below), does not know about (and
+ * must not know about) any previously synced content; that concern belongs to `SyncedRepoStore`
+ * below. Every call fully re-reads from `source` from scratch — no incremental diffing
+ * (design.md Decision 6b). Works identically regardless of which `RepoContentSource`
+ * implementation `source` is (disk, in-memory fake, or a future git/API adapter — Decision 7).
+ */
+export async function readRepoContentOnce(
+  source: RepoContentSource,
+  identity: RepoIdentity
+): Promise<RepoContent> {
+  const archivedChangeDirs = await source.listArchivedChangeDirs();
+  const archivedChanges: ArchivedChange[] = await Promise.all(
+    archivedChangeDirs.map(async dirRef => {
+      const proposalMarkdown = await source.readArchivedChangeFile(dirRef.dirName, 'proposal.md');
+      if (proposalMarkdown === undefined) {
+        throw new Error(`Malformed archived change "${dirRef.dirName}": missing proposal.md`);
+      }
+      const [designMarkdown, tasksMarkdown, touchedCapabilities] = await Promise.all([
+        source.readArchivedChangeFile(dirRef.dirName, 'design.md'),
+        source.readArchivedChangeFile(dirRef.dirName, 'tasks.md'),
+        source.listTouchedCapabilities(dirRef.dirName)
+      ]);
+      return {
+        slug: dirRef.slug,
+        archivedDate: dirRef.archivedDate,
+        proposalMarkdown,
+        designMarkdown,
+        tasksMarkdown,
+        touchedCapabilities
+      };
+    })
   );
 
-  const capabilities = readCapabilitySlugs(specsDir).map(slug => ({
-    slug,
-    specMarkdown: readCapabilitySpecMarkdown(specsDir, slug),
-    relatedChanges: computeRelatedChanges(slug, archivedChanges)
-  }));
+  const capabilitySlugs = await source.listCapabilitySlugs();
+  const capabilities = await Promise.all(
+    capabilitySlugs.map(async slug => ({
+      slug,
+      specMarkdown: await source.readCapabilitySpec(slug),
+      relatedChanges: computeRelatedChanges(slug, archivedChanges)
+    }))
+  );
 
-  return {
-    org: input.identity.org,
-    repo: input.identity.repo,
-    capabilities,
-    archivedChanges
-  };
+  return {org: identity.org, repo: identity.repo, capabilities, archivedChanges};
 }
 
 function repoKey(identity: RepoIdentity): string {
@@ -45,9 +63,9 @@ function repoKey(identity: RepoIdentity): string {
 export class SyncedRepoStore {
   private readonly lastGood = new Map<string, RepoContent>();
 
-  sync(input: ReadLocalRepoInput): RepoContent {
-    const content = readRepoContentOnce(input);
-    this.lastGood.set(repoKey(input.identity), content);
+  async sync(source: RepoContentSource, identity: RepoIdentity): Promise<RepoContent> {
+    const content = await readRepoContentOnce(source, identity);
+    this.lastGood.set(repoKey(identity), content);
     return content;
   }
 

@@ -27,20 +27,37 @@ export function writeCapabilitySpec(openspecDir: string, slug: string, markdown:
   writeFileSync(join(dir, 'spec.md'), markdown, 'utf-8');
 }
 
+/** Shared shape consumed by both `writeArchivedChange` (disk) and `createFakeContentSource`
+ * (in-memory) — see sync.test.ts, which builds the exact same fixture data for both adapters. */
 export interface ArchivedChangeFixture {
   archivedDate: string;
   slug: string;
   proposalMarkdown?: string;
+  /** Set `true` to make `proposal.md` absent entirely — for testing the "missing proposal.md"
+   * failure scenario. By default a placeholder `proposal.md` is always present, so most
+   * fixtures don't need to think about this. */
+  omitProposal?: boolean;
   designMarkdown?: string;
   tasksMarkdown?: string;
   /** Capability slugs to create empty `specs/<slug>/` delta directories for. */
   touchedCapabilities?: string[];
 }
 
+/** The one rule both adapters follow for `proposal.md`'s content: absent when `omitProposal`,
+ * otherwise `proposalMarkdown` or a placeholder — kept in one place so the disk writer and the
+ * fake source can't drift apart on this. */
+export function resolveProposalMarkdown(change: ArchivedChangeFixture): string | undefined {
+  if (change.omitProposal) return undefined;
+  return change.proposalMarkdown ?? `# ${change.slug}\n`;
+}
+
 export function writeArchivedChange(openspecDir: string, change: ArchivedChangeFixture): void {
   const dir = join(openspecDir, 'changes', 'archive', `${change.archivedDate}-${change.slug}`);
   mkdirSync(dir, {recursive: true});
-  writeFileSync(join(dir, 'proposal.md'), change.proposalMarkdown ?? `# ${change.slug}\n`, 'utf-8');
+  const proposalMarkdown = resolveProposalMarkdown(change);
+  if (proposalMarkdown !== undefined) {
+    writeFileSync(join(dir, 'proposal.md'), proposalMarkdown, 'utf-8');
+  }
   if (change.designMarkdown !== undefined) {
     writeFileSync(join(dir, 'design.md'), change.designMarkdown, 'utf-8');
   }
@@ -55,7 +72,9 @@ export function writeArchivedChange(openspecDir: string, change: ArchivedChangeF
 }
 
 /** Creates an active, not-yet-archived `changes/<name>/` directory — used to assert it's
- * correctly excluded from the synced content tree. */
+ * correctly excluded from the synced content tree. Disk-only concept: the `RepoContentSource`
+ * protocol has no method that could even expose one, by design (see disk-source.test.ts
+ * "DiskContentSource-specific behavior"). */
 export function writeActiveChange(openspecDir: string, name: string): void {
   const dir = join(openspecDir, 'changes', name);
   mkdirSync(dir, {recursive: true});

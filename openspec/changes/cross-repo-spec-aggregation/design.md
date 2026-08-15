@@ -140,6 +140,32 @@ behind when a spec file is deleted upstream). The one thing this strategy must s
 a failed sync leaves the previously-synced content tree untouched rather than clearing it —
 "sync failed" must never mean "content briefly disappears".
 
+### Decision 7: Pluggable content-source protocol — "how bytes get here" is never `spec-hub-core`'s concern
+
+**Chosen:** `spec-hub-core` defines a minimal read-only protocol, `RepoContentSource`
+(`listCapabilitySlugs`/`readCapabilitySpec`/`listArchivedChangeDirs`/`readArchivedChangeFile`/
+`listTouchedCapabilities`), and `readRepoContentOnce`/`SyncedRepoStore` talk to that protocol
+exclusively. `DiskContentSource` (reads an already-checked-out `openspec/` directory from local
+disk) is the only implementation this package ships. A future git-clone-to-tempdir adapter,
+GitHub API in-memory adapter, or isomorphic-git in-memory adapter is a separate class
+implementing the same protocol — none of the normalization logic changes to support it.
+
+**Why:** Decision 6's `RepoContent` shape (`capabilities[]`/`archivedChanges[]`) is meant to be
+invariant regardless of *how* the underlying `openspec/` bytes were obtained — a git clone into a
+temp dir, the GitHub Contents/GraphQL API fetched straight into memory, or `isomorphic-git` +
+`memfs` with no disk writes at all, must all be able to produce the exact same `RepoContent` for
+the same repo state. Hard-coding "read from a local path" into the normalization logic itself
+(the pre-Decision-7 shape of this package) would mean rewriting `associate.ts`/`sync.ts` every
+time a new pull mechanism is added — the protocol boundary exists specifically so that never has
+to happen.
+
+**Not yet decided:** which concrete adapter(s) get built (see Open Questions — this is really the
+same open question as "exact registration protocol/payload", now scoped more precisely: it's not
+just "what fields does registration take", it's "which `RepoContentSource` implementation does
+the registered repo's content flow through"). `tests/fake-source.ts` (a purely in-memory,
+disk-free implementation used only in tests) exists to prove the protocol boundary is real, not
+to be confused with a production adapter.
+
 ## Risks / Trade-offs
 
 - [Risk] Static rebuild means new/changed content isn't visible until the next build completes →

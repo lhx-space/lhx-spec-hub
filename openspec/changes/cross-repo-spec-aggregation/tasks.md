@@ -32,3 +32,9 @@
 - [ ] 6.2 敲定 push 触发的 ingest payload 形状，更新 design.md 消解对应 Open Question
 - [ ] 6.3 6.1/6.2 敲定后再评估是否在本 change 内实现，还是拆成后续 change（取决于此时中央平台的部署目标是否也已确定）
 
+## 7. 内容源协议化（实现阶段发现的架构改进，回填 1-4 组）
+
+- [x] 7.1 抽出 `RepoContentSource` 协议接口，把 1-4 组里直接调用 `node:fs` 的读取逻辑收进 `DiskContentSource`（协议的第一个、也是目前唯一的实现），`associate.ts`/`sync.ts` 改为只认协议、不再直接触碰文件系统——不改变 1-4 组任何 Scenario 的外部行为，只是把"怎么拿到字节"这一步做成可插拔的，见 design.md Decision 7
+- [x] 7.2 新增一个纯内存的 fake `RepoContentSource` 实现（仅供测试），把 1-4 组关键 Scenario 对着这个 fake 源用 `describe.each` 跟 `DiskContentSource` 各跑一遍，证明协议抽象是真的成立、不是只在磁盘场景下凑巧能跑
+
+

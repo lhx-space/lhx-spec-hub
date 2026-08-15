@@ -1,16 +1,123 @@
-import {mkdirSync, rmSync} from 'node:fs';
+import {rmSync} from 'node:fs';
 import {afterEach, beforeEach, describe, expect, it} from 'vitest';
+import {DiskContentSource} from '../src/disk-source';
 import {readRepoContentOnce, SyncedRepoStore} from '../src/sync';
+import type {RepoContentSource} from '../src/types';
+import {createFakeContentSource, type FakeSourceData} from './fake-source';
 import {
   createTempOpenspecFixture,
-  type TempOpenspecFixture,
   writeActiveChange,
   writeArchivedChange,
   writeCapabilitySpec
 } from './fixtures';
 
-describe('readRepoContentOnce', () => {
-  let fixture: TempOpenspecFixture;
+const identity = {org: 'lhx-space', repo: 'yjs-docs'};
+
+interface BuiltSource {
+  source: RepoContentSource;
+  cleanup: () => void;
+}
+
+function buildDiskSource(data: FakeSourceData): BuiltSource {
+  const fixture = createTempOpenspecFixture();
+  for (const [slug, markdown] of Object.entries(data.capabilities ?? {})) {
+    writeCapabilitySpec(fixture.openspecDir, slug, markdown);
+  }
+  for (const change of data.archivedChanges ?? []) {
+    writeArchivedChange(fixture.openspecDir, change);
+  }
+  return {source: new DiskContentSource(fixture.openspecDir), cleanup: fixture.cleanup};
+}
+
+function buildFakeSource(data: FakeSourceData): BuiltSource {
+  return {source: createFakeContentSource(data), cleanup: () => {}};
+}
+
+/**
+ * The same scenarios from spec-sync-engine spec.md, run once against `DiskContentSource` and
+ * once against a purely in-memory fake — proving design.md Decision 7's claim: swapping the
+ * content-source adapter never requires touching `readRepoContentOnce`/`SyncedRepoStore`.
+ */
+describe.each([
+  {name: 'DiskContentSource', build: buildDiskSource},
+  {name: 'in-memory fake source', build: buildFakeSource}
+])('readRepoContentOnce / SyncedRepoStore — $name', ({build}) => {
+  it('includes both capabilities and archived changes when both exist', async () => {
+    const {source, cleanup} = build({
+      capabilities: {'error-monitor': '## Requirements\n'},
+      archivedChanges: [
+        {
+          archivedDate: '2026-08-15',
+          slug: 'error-monitor-network-support',
+          touchedCapabilities: ['error-monitor']
+        }
+      ]
+    });
+    try {
+      const content = await readRepoContentOnce(source, identity);
+      expect(content.org).toBe('lhx-space');
+      expect(content.repo).toBe('yjs-docs');
+      expect(content.capabilities).toHaveLength(1);
+      expect(content.capabilities[0]?.slug).toBe('error-monitor');
+      expect(content.capabilities[0]?.relatedChanges).toEqual([
+        {slug: 'error-monitor-network-support', archivedDate: '2026-08-15'}
+      ]);
+      expect(content.archivedChanges).toHaveLength(1);
+      expect(content.archivedChanges[0]?.slug).toBe('error-monitor-network-support');
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('a capability with no related archived changes has an empty (not missing) relatedChanges', async () => {
+    const {source, cleanup} = build({capabilities: {'error-monitor': '## Requirements\n'}});
+    try {
+      const content = await readRepoContentOnce(source, identity);
+      expect(content.capabilities[0]?.relatedChanges).toEqual([]);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('throws when an archived change is missing proposal.md', async () => {
+    const {source, cleanup} = build({
+      archivedChanges: [{archivedDate: '2026-08-15', slug: 'broken', omitProposal: true}]
+    });
+    try {
+      await expect(readRepoContentOnce(source, identity)).rejects.toThrow(/missing proposal\.md/);
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('SyncedRepoStore keeps the last successful content and rethrows when a sync fails', async () => {
+    const good = build({capabilities: {a: '## Requirements\n'}});
+    const broken = build({
+      archivedChanges: [{archivedDate: '2026-08-15', slug: 'broken', omitProposal: true}]
+    });
+    try {
+      const store = new SyncedRepoStore();
+      await store.sync(good.source, identity);
+
+      await expect(store.sync(broken.source, identity)).rejects.toThrow(/missing proposal\.md/);
+      expect(store.getLastSynced(identity)?.capabilities.map(c => c.slug)).toEqual(['a']);
+    } finally {
+      good.cleanup();
+      broken.cleanup();
+    }
+  });
+
+  it('SyncedRepoStore has no last-synced content for a repo that was never synced', () => {
+    const store = new SyncedRepoStore();
+    expect(store.getLastSynced(identity)).toBeUndefined();
+  });
+});
+
+/** Scenarios that only make sense for the disk adapter specifically (active, non-archived
+ * `changes/<name>/` directories are a disk/on-disk-layout concept the `RepoContentSource`
+ * protocol has no notion of at all — the fake source can't even represent one). */
+describe('DiskContentSource-specific behavior', () => {
+  let fixture: ReturnType<typeof createTempOpenspecFixture>;
 
   beforeEach(() => {
     fixture = createTempOpenspecFixture();
@@ -20,111 +127,23 @@ describe('readRepoContentOnce', () => {
     fixture.cleanup();
   });
 
-  it('includes both capabilities and archived changes when both exist', () => {
-    writeCapabilitySpec(fixture.openspecDir, 'error-monitor', '## Requirements\n');
-    writeArchivedChange(fixture.openspecDir, {
-      archivedDate: '2026-08-15',
-      slug: 'error-monitor-network-support',
-      touchedCapabilities: ['error-monitor']
-    });
-
-    const content = readRepoContentOnce({
-      openspecDir: fixture.openspecDir,
-      identity: {org: 'lhx-space', repo: 'yjs-docs'}
-    });
-
-    expect(content.org).toBe('lhx-space');
-    expect(content.repo).toBe('yjs-docs');
-    expect(content.capabilities).toHaveLength(1);
-    expect(content.capabilities[0]!.slug).toBe('error-monitor');
-    expect(content.capabilities[0]!.relatedChanges).toEqual([
-      {slug: 'error-monitor-network-support', archivedDate: '2026-08-15'}
-    ]);
-    expect(content.archivedChanges).toHaveLength(1);
-    expect(content.archivedChanges[0]!.slug).toBe('error-monitor-network-support');
-  });
-
-  it('excludes active, not-yet-archived changes/<name>/ directories entirely', () => {
+  it('excludes active, not-yet-archived changes/<name>/ directories entirely', async () => {
     writeCapabilitySpec(fixture.openspecDir, 'error-monitor', '## Requirements\n');
     writeActiveChange(fixture.openspecDir, 'some-in-flight-change');
 
-    const content = readRepoContentOnce({
-      openspecDir: fixture.openspecDir,
-      identity: {org: 'lhx-space', repo: 'yjs-docs'}
-    });
-
+    const content = await readRepoContentOnce(new DiskContentSource(fixture.openspecDir), identity);
     expect(content.archivedChanges).toEqual([]);
   });
 
-  it('a capability with no related archived changes has an empty (not missing) relatedChanges', () => {
+  it('a capability removed from disk disappears on the next full re-read', async () => {
     writeCapabilitySpec(fixture.openspecDir, 'error-monitor', '## Requirements\n');
-
-    const content = readRepoContentOnce({
-      openspecDir: fixture.openspecDir,
-      identity: {org: 'lhx-space', repo: 'yjs-docs'}
-    });
-
-    expect(content.capabilities[0]!.relatedChanges).toEqual([]);
-  });
-
-  it('a capability removed from disk disappears on the next full re-read', () => {
-    writeCapabilitySpec(fixture.openspecDir, 'error-monitor', '## Requirements\n');
-    const before = readRepoContentOnce({
-      openspecDir: fixture.openspecDir,
-      identity: {org: 'lhx-space', repo: 'yjs-docs'}
-    });
+    const source = new DiskContentSource(fixture.openspecDir);
+    const before = await readRepoContentOnce(source, identity);
     expect(before.capabilities.map(c => c.slug)).toEqual(['error-monitor']);
 
     rmSync(`${fixture.openspecDir}/specs/error-monitor`, {recursive: true, force: true});
 
-    const after = readRepoContentOnce({
-      openspecDir: fixture.openspecDir,
-      identity: {org: 'lhx-space', repo: 'yjs-docs'}
-    });
+    const after = await readRepoContentOnce(source, identity);
     expect(after.capabilities).toEqual([]);
-  });
-});
-
-describe('SyncedRepoStore', () => {
-  let fixture: TempOpenspecFixture;
-  const identity = {org: 'lhx-space', repo: 'yjs-docs'};
-
-  beforeEach(() => {
-    fixture = createTempOpenspecFixture();
-  });
-
-  afterEach(() => {
-    fixture.cleanup();
-  });
-
-  it('replaces the previous content wholesale on a successful sync', () => {
-    const store = new SyncedRepoStore();
-    writeCapabilitySpec(fixture.openspecDir, 'a', '## Requirements\n');
-    store.sync({openspecDir: fixture.openspecDir, identity});
-
-    rmSync(`${fixture.openspecDir}/specs/a`, {recursive: true, force: true});
-    writeCapabilitySpec(fixture.openspecDir, 'b', '## Requirements\n');
-    store.sync({openspecDir: fixture.openspecDir, identity});
-
-    expect(store.getLastSynced(identity)?.capabilities.map(c => c.slug)).toEqual(['b']);
-  });
-
-  it('keeps the last successful content and rethrows when a sync fails', () => {
-    const store = new SyncedRepoStore();
-    writeCapabilitySpec(fixture.openspecDir, 'a', '## Requirements\n');
-    store.sync({openspecDir: fixture.openspecDir, identity});
-
-    // Simulate a broken archive (missing proposal.md) causing readRepoContentOnce to throw.
-    mkdirSync(`${fixture.openspecDir}/changes/archive/2026-08-15-broken`, {recursive: true});
-
-    expect(() => store.sync({openspecDir: fixture.openspecDir, identity})).toThrow(
-      /missing proposal\.md/
-    );
-    expect(store.getLastSynced(identity)?.capabilities.map(c => c.slug)).toEqual(['a']);
-  });
-
-  it('has no last-synced content for a repo that was never synced', () => {
-    const store = new SyncedRepoStore();
-    expect(store.getLastSynced(identity)).toBeUndefined();
   });
 });

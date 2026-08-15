@@ -22,6 +22,20 @@ export interface ArchivedChangeRef {
   archivedDate: string;
 }
 
+/** Parsed `changes/archive/<archivedDate>-<slug>/` directory name — part of the
+ * `RepoContentSource` protocol's surface (see Decision 7), not just an internal detail of the
+ * disk adapter. */
+export interface ArchivedChangeDirRef {
+  dirName: string;
+  archivedDate: string;
+  slug: string;
+}
+
+/** The three files an archived change directory may contain. `proposal.md` is expected by every
+ * properly-archived change (see `readRepoContentOnce` in `sync.ts`, which throws if a source
+ * reports it as missing); `design.md`/`tasks.md` are optional. */
+export type ArchivedChangeFileName = 'proposal.md' | 'design.md' | 'tasks.md';
+
 export interface CapabilitySpec {
   /** Directory name under `specs/`, e.g. `error-monitor`. */
   slug: string;
@@ -39,7 +53,7 @@ export interface ArchivedChange {
   slug: string;
   archivedDate: string;
   /** Verbatim contents of `proposal.md`. Every archived change is expected to have one — see
-   * `readArchivedChange` in `read-archive.ts`, which throws if it's missing. */
+   * `readRepoContentOnce` in `sync.ts`, which throws if a source reports it missing. */
   proposalMarkdown: string;
   /** Verbatim contents of `design.md`, if present (not every change has a design doc). */
   designMarkdown?: string;
@@ -54,13 +68,32 @@ export interface RepoContent extends RepoIdentity {
   archivedChanges: ArchivedChange[];
 }
 
-/** Input for reading a repo's `openspec/` content from a local filesystem path. No network/git
- * access is performed by this package — how bytes get onto local disk (a fresh clone, a
- * sparse-checkout, a registration/webhook pipeline...) is entirely out of scope here (see
- * design.md Open Questions: registration protocol / push-trigger payload are separate,
- * not-yet-designed concerns). */
-export interface ReadLocalRepoInput {
-  /** Absolute path to the repo's `openspec/` directory (not the repo root). */
-  openspecDir: string;
-  identity: RepoIdentity;
+/**
+ * The protocol every "how do bytes get here" adapter implements — disk (the only adapter this
+ * package ships, see `disk-source.ts`), and later a git-clone-to-tempdir adapter / GitHub API
+ * in-memory adapter / isomorphic-git adapter, none of which are built yet. `associate.ts` and
+ * `sync.ts` — the normalization logic that produces `RepoContent` — talk to this interface
+ * exclusively; they have no idea whether the bytes came from disk, a network call, or were
+ * fabricated in a test (see `tests/fake-source.ts`, and design.md Decision 7).
+ *
+ * Deliberately minimal and read-only — this is not a general-purpose virtual filesystem, only
+ * exactly the handful of operations `spec-sync-engine` actually needs.
+ */
+export interface RepoContentSource {
+  /** Capability slugs under `specs/` that have a `spec.md` — a subdirectory without one is not
+   * a capability. */
+  listCapabilitySlugs(): Promise<string[]>;
+  /** Verbatim `specs/<slug>/spec.md` contents. */
+  readCapabilitySpec(slug: string): Promise<string>;
+  /** Parsed `changes/archive/<archivedDate>-<slug>/` directory names. */
+  listArchivedChangeDirs(): Promise<ArchivedChangeDirRef[]>;
+  /** Verbatim contents of `changes/archive/<dirName>/<fileName>`; `undefined` if that file
+   * doesn't exist for that change. The source only reports presence/absence — deciding that a
+   * missing `proposal.md` is an error is `sync.ts`'s job, not the source's. */
+  readArchivedChangeFile(
+    dirName: string,
+    fileName: ArchivedChangeFileName
+  ): Promise<string | undefined>;
+  /** Capability slugs touched by `changes/archive/<dirName>/specs/<slug>/`. */
+  listTouchedCapabilities(dirName: string): Promise<string[]>;
 }
